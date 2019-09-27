@@ -1,4 +1,6 @@
-from urllib import urlopen, urlretrieve
+#!/usr/bin/env python
+
+from urllib.request import urlopen, urlretrieve
 import json
 import os
 import time
@@ -20,9 +22,9 @@ minecraft_ver = data['latest']['release']
 
 logFile = open("update.log", "a+")
 
-if os.path.exists('../server.jar'):
+if os.path.exists('server.jar'):
     sha = hashlib.sha1()
-    f = open("../server.jar", 'rb')
+    f = open("server.jar", 'rb')
     sha.update(f.read())
     cur_ver = sha.hexdigest()
 else:
@@ -35,12 +37,13 @@ for version in data['versions']:
         jardata = json.loads(jarres.decode('UTF-8'))
         jarsha = jardata['downloads']['server']['sha1']
 
-        log('Your sha1 is ' + cur_ver + '. Latest version is ' + str(minecraft_ver) + " with sha1 of " + jarsha, logFile)
+        log('Your sha1 is ' + cur_ver + '. Latest version is ' + str(minecraft_ver) + " with an SHA-1 hash of " + jarsha, logFile)
 
         if cur_ver != jarsha:
             log('Updating server', logFile)
             link = jardata['downloads']['server']['url']
             log('Downloading jar from ' + link, logFile)
+            os.system('mv server.jar old_server.jar')
             urlretrieve(link, 'server.jar')
             log('Downloaded', logFile)
             os.system('screen -S minecraft -X stuff \'say The server will restart in 30 seconds.^M\'')
@@ -56,23 +59,21 @@ for version in data['versions']:
             time.sleep(1)
 
             log('Stopping server', logFile)
-            os.system('screen -S minecraft -X stuff \'stop^M\'')
+            os.system('screen -S minecraft -X stuff \"\`echo -ne \\\"stop\\r\\\"\`\"')
             time.sleep(5)
             log('Backing up world...', logFile)
-            if not os.path.exists("backup"):
-                os.makedirs("backup")
+            if not os.path.exists("backups"):
+                os.makedirs("backups")
 
             backupPath = "backups/world" +"_backup_" + str(int(time.time()/1000)) + "_sha=" + cur_ver
-            shutil.copytree("../world", backupPath)
+            shutil.copytree("world", backupPath)
 
             log('Backup complete, now updating server jar', logFile)
-            if os.path.exists('../server.jar'):
-                os.remove('../server.jar')
+            if os.path.exists('old_server.jar'):
+                os.remove('old_server.jar')
 
-            os.rename('server.jar', '../server.jar')
             log('Starting server', logFile)
             logFile.close()
-            os.chdir("..")
             os.system('screen -S minecraft -d -m java -Xmx2048M -Xms512M -jar server.jar')
 
         else:
@@ -80,4 +81,3 @@ for version in data['versions']:
             logFile.close()
 
         break
-
